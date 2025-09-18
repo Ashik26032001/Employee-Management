@@ -1,0 +1,231 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Edit Employee - Employee Management System{% endblock %}
+{% block page_title %}Edit Employee{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Edit Employee</h5>
+                <div>
+                    <a href="{% url 'employee_detail' employee_id %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-eye me-2"></i>View Details
+                    </a>
+                    <a href="{% url 'employee_management' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Employees
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="employeeInfo" class="mb-4">
+                    {% if employee_obj %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Employee ID</h6>
+                            <p class="text-muted">{{ employee_obj.employee_id }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Form Template</h6>
+                            <p class="text-muted">{{ employee_obj.form_template.name }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Created</h6>
+                            <p class="text-muted">{{ employee_obj.created_at|date:'Y-m-d H:i' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Last Updated</h6>
+                            <p class="text-muted">{{ employee_obj.updated_at|date:'Y-m-d H:i' }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form id="employeeForm" method="post">
+                    {% csrf_token %}
+                    <div id="formFields">
+                        {% if fields %}
+                            {% for field in fields %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ field.field_label }}{% if field.is_required %} <span class="text-danger">*</span>{% endif %}</label>
+                                {% if field.field_type in 'text,email,number' %}
+                                    <input type="{{ field.field_type }}" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'password' %}
+                                    <input type="password" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" value="" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'date' %}
+                                    <input type="date" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'textarea' %}
+                                    <textarea class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" rows="3" placeholder="{{ field.placeholder }}" {% if field.is_required %}required{% endif %}>{{ field.value }}</textarea>
+                                {% elif field.field_type == 'select' %}
+                                    <select class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" {% if field.is_required %}required{% endif %}>
+                                        <option value="">Select an option...</option>
+                                        {% for opt in field.options %}
+                                        <option value="{{ opt }}" {% if opt == field.value %}selected{% endif %}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% elif field.field_type == 'checkbox' %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="field_{{ field.id }}" name="field_{{ field.id }}" {% if field.value in 'true,True,1' %}checked{% endif %}>
+                                        <label class="form-check-label" for="field_{{ field.id }}">{{ field.field_label }}</label>
+                                    </div>
+                                {% elif field.field_type == 'file' %}
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="No file selected" value="{{ field.value }}" readonly>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="openFileUpload({{ field.id }})">Choose File</button>
+                                    </div>
+                                {% else %}
+                                    <input type="text" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% endif %}
+                                {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
+                            <p>Loading employee data...</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isActive" name="is_active" {% if employee_obj and employee_obj.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="isActive">
+                                    Active Employee
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary me-2" onclick="saveEmployee()">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                <i class="fas fa-undo me-2"></i>Reset Changes
+                            </button>
+                        </div>
+                    </div>
+                    <input type="hidden" name="field_values_json" id="field_values_json" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Upload Modal -->
+<div class="modal fade" id="fileUploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="fileInput" class="form-label">Choose File</label>
+                    <input type="file" class="form-control" id="fileInput" accept="*/*">
+                </div>
+                <div id="filePreview" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="uploadFile()">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentFieldId = null;
+const employeeId = '{{ employee_id }}';
+// Form is server-rendered; below JS only handles file modal and submit
+
+function openFileUpload(fieldId) {
+    currentFieldId = fieldId;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('filePreview').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('fileUploadModal')).show();
+}
+
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    showLoading();
+    
+    axios.post('/api/dashboard/upload/', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    })
+    .then(response => {
+        hideLoading();
+        const filePath = response.data.file_path;
+        
+        // Update the file input field
+        document.getElementById(`field_${currentFieldId}`).value = filePath;
+        
+        // Show file preview
+        document.getElementById('filePreview').innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                File uploaded successfully: ${response.data.file_name}
+            </div>
+        `;
+        
+        bootstrap.Modal.getInstance(document.getElementById('fileUploadModal')).hide();
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error uploading file:', error);
+        showError('Failed to upload file');
+    });
+}
+
+async function saveEmployee() {
+    try {
+        // Collect form data
+        const fieldValuesData = {};
+        document.querySelectorAll('[id^="field_"]').forEach(input => {
+            const fieldId = input.id.replace('field_', '');
+            if (input.type === 'checkbox') {
+                fieldValuesData[fieldId] = input.checked;
+            } else {
+                fieldValuesData[fieldId] = input.value;
+            }
+        });
+        
+        document.getElementById('field_values_json').value = JSON.stringify(fieldValuesData);
+        document.getElementById('employeeForm').submit();
+        
+    } catch (error) {
+        console.error('Error saving employee:', error);
+    }
+}
+
+function resetForm() {
+    if (confirm('Are you sure you want to reset the form? All changes will be lost.')) {
+        loadEmployeeData();
+    }
+}
+</script>
+{% endblock %}
+

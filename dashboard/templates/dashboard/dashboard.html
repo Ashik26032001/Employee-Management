@@ -1,0 +1,278 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Dashboard - Employee Management System{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Stats Cards -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Total Employees</div>
+                        <div class="h5 mb-0 font-weight-bold" id="totalEmployees">-</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Form Templates</div>
+                        <div class="h5 mb-0 font-weight-bold" id="totalTemplates">-</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-wpforms fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Active Employees</div>
+                        <div class="h5 mb-0 font-weight-bold" id="activeEmployees">-</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Notifications</div>
+                        <div class="h5 mb-0 font-weight-bold" id="unreadNotifications">-</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bell fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Employees -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">Recent Employees</h6>
+                <a href="{% url 'employee_management' %}" class="btn btn-primary btn-sm">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>Form Template</th>
+                                <th>Created</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentEmployees">
+                            <tr>
+                                <td colspan="5" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'employee_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Employee
+                    </a>
+                    <a href="{% url 'form_builder' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-wpforms me-2"></i>Build Form
+                    </a>
+                    <a href="{% url 'employee_management' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-users me-2"></i>Manage Employees
+                    </a>
+                    <a href="{% url 'audit_logs' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-history me-2"></i>View Audit Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Form Templates -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">Form Templates</h6>
+                <a href="{% url 'form_builder' %}" class="btn btn-primary btn-sm">Create New</a>
+            </div>
+            <div class="card-body">
+                <div id="formTemplates">
+                    <div class="text-center">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Recent Activity</h6>
+            </div>
+            <div class="card-body">
+                <div id="recentActivity">
+                    <div class="text-center">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+});
+
+async function loadDashboardData() {
+    try {
+        // Load dashboard stats
+        const statsResponse = await axios.get('/api/dashboard/stats/');
+        const stats = statsResponse.data;
+        
+        document.getElementById('totalEmployees').textContent = stats.total_employees;
+        document.getElementById('totalTemplates').textContent = stats.total_form_templates;
+        document.getElementById('activeEmployees').textContent = stats.active_employees;
+        document.getElementById('unreadNotifications').textContent = stats.unread_notifications;
+
+        // Load recent employees
+        const employeesResponse = await axios.get('/api/employees/?ordering=-created_at&page_size=5');
+        const employees = employeesResponse.data.results;
+        
+        const recentEmployeesTable = document.getElementById('recentEmployees');
+        recentEmployeesTable.innerHTML = '';
+        
+        if (employees.length === 0) {
+            recentEmployeesTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No employees found</td></tr>';
+        } else {
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${employee.employee_id.substring(0, 8)}...</td>
+                    <td>${employee.employee_name}</td>
+                    <td>${employee.form_template_name}</td>
+                    <td>${new Date(employee.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <span class="badge ${employee.is_active ? 'bg-success' : 'bg-secondary'}">
+                            ${employee.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                `;
+                recentEmployeesTable.appendChild(row);
+            });
+        }
+
+        // Load form templates
+        const templatesResponse = await axios.get('/api/form-templates/?page_size=5');
+        const templates = templatesResponse.data.results;
+        
+        const formTemplatesDiv = document.getElementById('formTemplates');
+        formTemplatesDiv.innerHTML = '';
+        
+        if (templates.length === 0) {
+            formTemplatesDiv.innerHTML = '<div class="text-center text-muted">No form templates found</div>';
+        } else {
+            templates.forEach(template => {
+                const templateDiv = document.createElement('div');
+                templateDiv.className = 'd-flex justify-content-between align-items-center mb-2 p-2 border rounded';
+                templateDiv.innerHTML = `
+                    <div>
+                        <strong>${template.name}</strong>
+                        <br>
+                        <small class="text-muted">${template.fields.length} fields</small>
+                    </div>
+                    <span class="badge ${template.is_active ? 'bg-success' : 'bg-secondary'}">
+                        ${template.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                `;
+                formTemplatesDiv.appendChild(templateDiv);
+            });
+        }
+
+        // Load recent activity (audit logs)
+        const activityResponse = await axios.get('/api/audit-logs/?page_size=5');
+        const activities = activityResponse.data.results;
+        
+        const recentActivityDiv = document.getElementById('recentActivity');
+        recentActivityDiv.innerHTML = '';
+        
+        if (activities.length === 0) {
+            recentActivityDiv.innerHTML = '<div class="text-center text-muted">No recent activity</div>';
+        } else {
+            activities.forEach(activity => {
+                const activityDiv = document.createElement('div');
+                activityDiv.className = 'd-flex align-items-center mb-3';
+                activityDiv.innerHTML = `
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-${getActivityIcon(activity.action)} text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fw-bold">${activity.action.charAt(0).toUpperCase() + activity.action.slice(1)}</div>
+                        <div class="text-muted small">${activity.employee_name} by ${activity.performed_by_username}</div>
+                        <div class="text-muted small">${new Date(activity.timestamp).toLocaleString()}</div>
+                    </div>
+                `;
+                recentActivityDiv.appendChild(activityDiv);
+            });
+        }
+
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        showError('Failed to load dashboard data');
+    }
+}
+
+function getActivityIcon(action) {
+    const icons = {
+        'create': 'plus',
+        'update': 'edit',
+        'delete': 'trash',
+        'view': 'eye'
+    };
+    return icons[action] || 'circle';
+}
+</script>
+{% endblock %}
+

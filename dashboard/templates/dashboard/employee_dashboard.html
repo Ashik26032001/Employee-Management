@@ -1,0 +1,256 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Employee Dashboard - Employee Management System{% endblock %}
+{% block page_title %}Employee Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Welcome, <span id="employeeName">Employee</span></h5>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="viewProfile()">
+                        <i class="fas fa-user me-1"></i>View Profile
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="employeeInfo">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading employee information...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Employee Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="profileContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">Change Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let employeeData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get employee data from sessionStorage
+    const storedData = sessionStorage.getItem('employee_data');
+    if (storedData) {
+        employeeData = JSON.parse(storedData);
+        displayEmployeeInfo();
+    } else {
+        // Redirect to login if no employee data
+        window.location.href = '/employee/login/';
+    }
+});
+
+function displayEmployeeInfo() {
+    if (!employeeData) return;
+    
+    document.getElementById('employeeName').textContent = employeeData.employee_name || employeeData.username;
+    
+    let infoHtml = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Basic Information</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Employee ID:</strong></td>
+                        <td>${employeeData.employee_id}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Username:</strong></td>
+                        <td>${employeeData.username}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>${employeeData.employee_name || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Account Details</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Created:</strong></td>
+                        <td>${new Date(employeeData.created_at).toLocaleDateString()}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Last Login:</strong></td>
+                        <td>${employeeData.last_login ? new Date(employeeData.last_login).toLocaleDateString() : 'Never'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Form Template:</strong></td>
+                        <td>${employeeData.form_template_name || 'N/A'}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Add field values if available
+    if (employeeData.field_values && employeeData.field_values.length > 0) {
+        infoHtml += `
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6>Additional Information</h6>
+                    <table class="table table-sm">
+        `;
+        
+        employeeData.field_values.forEach(field => {
+            infoHtml += `
+                <tr>
+                    <td><strong>${field.field_label}:</strong></td>
+                    <td>${field.value || 'N/A'}</td>
+                </tr>
+            `;
+        });
+        
+        infoHtml += `
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('employeeInfo').innerHTML = infoHtml;
+}
+
+function viewProfile() {
+    if (!employeeData) return;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('profileModal'));
+    modal.show();
+    
+    // Load profile content
+    document.getElementById('profileContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    // Simulate loading profile data
+    setTimeout(() => {
+        let profileHtml = `
+            <div class="row">
+                <div class="col-md-4 text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-user-circle fa-5x text-muted"></i>
+                    </div>
+                    <h5>${employeeData.employee_name || employeeData.username}</h5>
+                    <p class="text-muted">${employeeData.username}</p>
+                </div>
+                <div class="col-md-8">
+                    <h6>Profile Information</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Employee ID:</strong></td>
+                            <td>${employeeData.employee_id}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Username:</strong></td>
+                            <td>${employeeData.username}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Name:</strong></td>
+                            <td>${employeeData.employee_name || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td><span class="badge bg-success">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Created:</strong></td>
+                            <td>${new Date(employeeData.created_at).toLocaleDateString()}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Last Login:</strong></td>
+                            <td>${employeeData.last_login ? new Date(employeeData.last_login).toLocaleDateString() : 'Never'}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        if (employeeData.field_values && employeeData.field_values.length > 0) {
+            profileHtml += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Additional Details</h6>
+                        <table class="table table-sm">
+            `;
+            
+            employeeData.field_values.forEach(field => {
+                profileHtml += `
+                    <tr>
+                        <td><strong>${field.field_label}:</strong></td>
+                        <td>${field.value || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+            
+            profileHtml += `
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('profileContent').innerHTML = profileHtml;
+    }, 500);
+}
+
+function changePassword() {
+    // Close profile modal
+    bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();
+    
+    // Redirect to change password page
+    window.location.href = '/employee/change-password/';
+}
+
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Clear session data
+        sessionStorage.removeItem('employee_data');
+        
+        // Redirect to login
+        window.location.href = '/employee/login/';
+    }
+}
+</script>
+{% endblock %}

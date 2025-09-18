@@ -1,0 +1,448 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Form Builder - Employee Management System{% endblock %}
+{% block page_title %}Form Builder{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Create New Form Template</h5>
+                <button type="button" class="btn btn-success" onclick="saveForm()">
+                    <i class="fas fa-save me-2"></i>Save Form
+                </button>
+            </div>
+            <div class="card-body">
+                <form method="post" id="formBuilderForm">
+                    {% csrf_token %}
+                <!-- Form Template Details -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="formName" class="form-label">Form Name</label>
+                        <input type="text" class="form-control" id="formName" name="form_name" placeholder="Enter form name">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="formDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="formDescription" name="form_description" placeholder="Enter form description">
+                    </div>
+                </div>
+
+                <!-- Form Fields -->
+                <div class="mb-3">
+                    <label class="form-label">Form Fields</label>
+                    <div id="formFields" class="border rounded p-3 min-height-200">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                            <p>Click "Add Field" to start building your form</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Field Button -->
+                <div class="text-center mb-4">
+                    <button type="button" class="btn btn-primary" onclick="addField()">
+                        <i class="fas fa-plus me-2"></i>Add Field
+                    </button>
+                </div>
+                <input type="hidden" name="fields_json" id="fields_json" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing Form Templates -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Form Templates</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Fields</th>
+                                <th>Created</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="existingTemplates">
+                            {% if templates %}
+                                {% for t in templates %}
+                                <tr>
+                                    <td>{{ t.name }}</td>
+                                    <td>{{ t.description|default:'-' }}</td>
+                                    <td><span class="badge bg-primary">{{ t.fields.count }} fields</span></td>
+                                    <td>{{ t.created_at|date:'Y-m-d' }}</td>
+                                    <td>
+                                        <span class="badge {% if t.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {% if t.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" type="button" onclick="editTemplate({{ t.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading...</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Field Type Modal -->
+<div class="modal fade" id="fieldTypeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Field Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('text')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-font fa-2x text-primary mb-2"></i>
+                                <h6>Text</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('number')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-hashtag fa-2x text-primary mb-2"></i>
+                                <h6>Number</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('email')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                                <h6>Email</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('date')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-calendar fa-2x text-primary mb-2"></i>
+                                <h6>Date</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('password')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-lock fa-2x text-primary mb-2"></i>
+                                <h6>Password</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('textarea')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-align-left fa-2x text-primary mb-2"></i>
+                                <h6>Text Area</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('select')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-list fa-2x text-primary mb-2"></i>
+                                <h6>Select</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card field-type-card" onclick="selectFieldType('file')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file fa-2x text-primary mb-2"></i>
+                                <h6>File Upload</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .min-height-200 {
+        min-height: 200px;
+    }
+    .field-type-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid #e9ecef;
+    }
+    .field-type-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+    }
+    .field-item {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        background: #f8f9fa;
+    }
+    .field-item.dragging {
+        opacity: 0.5;
+    }
+    .drag-handle {
+        cursor: move;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let fieldCounter = 0;
+let formFields = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadExistingTemplates();
+    initializeSortable();
+});
+
+function addField() {
+    new bootstrap.Modal(document.getElementById('fieldTypeModal')).show();
+}
+
+function selectFieldType(fieldType) {
+    bootstrap.Modal.getInstance(document.getElementById('fieldTypeModal')).hide();
+    createField(fieldType);
+}
+
+function createField(fieldType) {
+    const fieldId = `field_${fieldCounter++}`;
+    const fieldItem = document.createElement('div');
+    fieldItem.className = 'field-item';
+    fieldItem.id = fieldId;
+    
+    const fieldTypes = {
+        'text': 'Text Input',
+        'number': 'Number Input',
+        'email': 'Email Input',
+        'date': 'Date Input',
+        'password': 'Password Input',
+        'textarea': 'Text Area',
+        'select': 'Select Dropdown',
+        'file': 'File Upload'
+    };
+
+    fieldItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-grip-vertical drag-handle me-2"></i>
+                <h6 class="mb-0">${fieldTypes[fieldType]}</h6>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeField('${fieldId}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Field Name</label>
+                <input type="text" class="form-control" name="field_name" placeholder="e.g., first_name">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Field Label</label>
+                <input type="text" class="form-control" name="field_label" placeholder="e.g., First Name">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Placeholder</label>
+                <input type="text" class="form-control" name="placeholder" placeholder="Enter placeholder text">
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_required" id="required_${fieldId}">
+                    <label class="form-check-label" for="required_${fieldId}">
+                        Required Field
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Help Text</label>
+                <input type="text" class="form-control" name="help_text" placeholder="Optional help text">
+            </div>
+        </div>
+        
+        ${fieldType === 'select' ? `
+        <div class="mb-3">
+            <label class="form-label">Options (one per line)</label>
+            <textarea class="form-control" name="options" rows="3" placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+        </div>
+        ` : ''}
+        
+        <input type="hidden" name="field_type" value="${fieldType}">
+    `;
+
+    // Remove the empty state if it exists
+    const emptyState = document.querySelector('#formFields .text-center');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    document.getElementById('formFields').appendChild(fieldItem);
+    formFields.push({
+        id: fieldId,
+        type: fieldType
+    });
+}
+
+function removeField(fieldId) {
+    const fieldElement = document.getElementById(fieldId);
+    if (fieldElement) {
+        fieldElement.remove();
+        formFields = formFields.filter(f => f.id !== fieldId);
+        
+        // Show empty state if no fields
+        if (formFields.length === 0) {
+            document.getElementById('formFields').innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-plus-circle fa-3x mb-3"></i>
+                    <p>Click "Add Field" to start building your form</p>
+                </div>
+            `;
+        }
+    }
+}
+
+function initializeSortable() {
+    const sortable = Sortable.create(document.getElementById('formFields'), {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'dragging'
+    });
+}
+
+async function saveForm() {
+    const formName = document.getElementById('formName').value.trim();
+    const formDescription = document.getElementById('formDescription').value.trim();
+
+    if (!formName) {
+        alert('Please enter a form name');
+        return;
+    }
+
+    if (formFields.length === 0) {
+        alert('Please add at least one field to the form');
+        return;
+    }
+
+    // Collect field data
+    const fieldsData = [];
+    document.querySelectorAll('.field-item').forEach((fieldItem, index) => {
+        const fieldData = {
+            field_name: fieldItem.querySelector('[name="field_name"]').value.trim(),
+            field_label: fieldItem.querySelector('[name="field_label"]').value.trim(),
+            field_type: fieldItem.querySelector('[name="field_type"]').value,
+            is_required: fieldItem.querySelector('[name="is_required"]').checked,
+            placeholder: fieldItem.querySelector('[name="placeholder"]').value.trim(),
+            help_text: fieldItem.querySelector('[name="help_text"]').value.trim(),
+            order: index
+        };
+
+        if (fieldData.field_type === 'select') {
+            const optionsText = fieldItem.querySelector('[name="options"]').value.trim();
+            if (optionsText) {
+                fieldData.options = optionsText.split('\n').filter(opt => opt.trim());
+            }
+        }
+
+        fieldsData.push(fieldData);
+    });
+
+    // Submit via HTML form to server view
+    document.getElementById('fields_json').value = JSON.stringify(fieldsData);
+    document.getElementById('formBuilderForm').submit();
+}
+
+async function loadExistingTemplates() {
+    try {
+        const response = await axios.get('/api/form-templates/');
+        const templates = response.data.results;
+        
+        const tbody = document.getElementById('existingTemplates');
+        tbody.innerHTML = '';
+        
+        if (templates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No form templates found</td></tr>';
+        } else {
+            templates.forEach(template => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${template.name}</td>
+                    <td>${template.description || '-'}</td>
+                    <td><span class="badge bg-primary">${template.fields.length} fields</span></td>
+                    <td>${new Date(template.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <span class="badge ${template.is_active ? 'bg-success' : 'bg-secondary'}">
+                            ${template.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editTemplate(${template.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${template.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading templates:', error);
+        showError('Failed to load form templates');
+    }
+}
+
+async function deleteTemplate(templateId) {
+    if (confirm('Are you sure you want to delete this form template?')) {
+        try {
+            await axios.delete(`/api/form-templates/${templateId}/`);
+            showSuccess('Form template deleted successfully!');
+            loadExistingTemplates();
+        } catch (error) {
+            console.error('Error deleting template:', error);
+            showError('Failed to delete form template');
+        }
+    }
+}
+
+function editTemplate(templateId) {
+    // Redirect to edit page or show edit modal
+    window.location.href = `/form-templates/${templateId}/edit/`;
+}
+</script>
+{% endblock %}
+

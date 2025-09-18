@@ -1,0 +1,408 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Employee Details - Employee Management System{% endblock %}
+{% block page_title %}Employee Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Employee Details</h5>
+                <div>
+                    <a href="{% url 'employee_edit' employee_id %}" class="btn btn-warning me-2">
+                        <i class="fas fa-edit me-2"></i>Edit Employee
+                    </a>
+                    <a href="{% url 'employee_management' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Employees
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Employee Basic Information -->
+                <div id="employeeBasicInfo" class="mb-4">
+                    {% if employee_obj %}
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-id-card fa-3x text-primary mb-3"></i>
+                                    <h6>Employee ID</h6>
+                                    <p class="text-muted">{{ employee_obj.employee_id }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                                    <h6>Form Template</h6>
+                                    <p class="text-muted">{{ employee_obj.form_template.name }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar fa-3x text-primary mb-3"></i>
+                                    <h6>Created</h6>
+                                    <p class="text-muted">{{ employee_obj.created_at|date:'Y-m-d' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-toggle-{% if employee_obj.is_active %}on{% else %}off{% endif %} fa-3x {% if employee_obj.is_active %}text-success{% else %}text-secondary{% endif %} mb-3"></i>
+                                    <h6>Status</h6>
+                                    <p class="text-muted">
+                                        <span class="badge {% if employee_obj.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {% if employee_obj.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Employee Field Values -->
+                <div id="employeeFieldValues">
+                    {% if employee_obj %}
+                    <h6>Field Values</h6>
+                    {% if employee_obj.field_values.all %}
+                    <div class="row">
+                        {% for fv in employee_obj.field_values.all %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ fv.field.field_label }}</h6>
+                                    <p class="card-text">
+                                        {% if fv.file_value %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-file fa-2x text-primary me-3"></i>
+                                                <div>
+                                                    <strong>File Uploaded</strong><br>
+                                                    <small class="text-muted">{{ fv.file_value.name|default:fv.file_value }}</small>
+                                                </div>
+                                            </div>
+                                        {% elif fv.value %}
+                                            {{ fv.value }}
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag me-1"></i>{{ fv.field.field_type }}
+                                        {% if fv.field.field_name != fv.field.field_label %}({{ fv.field.field_name }}){% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">No field values found.</div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Audit Trail -->
+                <div class="mt-5">
+                    <h6>Recent Activity</h6>
+                    <div id="auditTrail">
+                        {% if audit_logs %}
+                        <div class="timeline">
+                            {% for log in audit_logs %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-{% if log.action == 'create' %}success{% elif log.action == 'update' %}warning{% elif log.action == 'delete' %}danger{% else %}info{% endif %}">
+                                    <i class="fas fa-{% if log.action == 'create' %}plus{% elif log.action == 'update' %}edit{% elif log.action == 'delete' %}trash{% else %}eye{% endif %}"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="mb-1">{{ log.action|capfirst }}</h6>
+                                                    <p class="mb-1 text-muted">{{ employee_obj.employee_name }}</p>
+                                                    <small class="text-muted">by {{ log.performed_by.username }}</small>
+                                                </div>
+                                                <small class="text-muted">{{ log.timestamp|date:'Y-m-d H:i' }}</small>
+                                            </div>
+                                            {% if log.changes %}
+                                            <div class="mt-2">
+                                                <small class="text-muted">Changes:</small>
+                                                <pre class="small bg-light p-2 rounded mt-1">{{ log.changes|safe }}</pre>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">No recent activity found.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const employeeId = '{{ employee_id }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadEmployeeDetails();
+    loadAuditTrail();
+});
+
+async function loadEmployeeDetails() {
+    try {
+        showLoading();
+        const response = await axios.get(`/api/employees/${employeeId}/`);
+        const employee = response.data;
+        
+        // Display basic information
+        document.getElementById('employeeBasicInfo').innerHTML = `
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-id-card fa-3x text-primary mb-3"></i>
+                            <h6>Employee ID</h6>
+                            <p class="text-muted">${employee.employee_id}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                            <h6>Form Template</h6>
+                            <p class="text-muted">${employee.form_template_name}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-calendar fa-3x text-primary mb-3"></i>
+                            <h6>Created</h6>
+                            <p class="text-muted">${new Date(employee.created_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-toggle-${employee.is_active ? 'on' : 'off'} fa-3x ${employee.is_active ? 'text-success' : 'text-secondary'} mb-3"></i>
+                            <h6>Status</h6>
+                            <p class="text-muted">
+                                <span class="badge ${employee.is_active ? 'bg-success' : 'bg-secondary'}">
+                                    ${employee.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Display field values
+        const fieldValuesDiv = document.getElementById('employeeFieldValues');
+        fieldValuesDiv.innerHTML = '<h6>Field Values</h6>';
+        
+        if (employee.field_values.length === 0) {
+            fieldValuesDiv.innerHTML += '<div class="alert alert-info">No field values found.</div>';
+        } else {
+            const fieldsContainer = document.createElement('div');
+            fieldsContainer.className = 'row';
+            
+            employee.field_values.forEach(fieldValue => {
+                const fieldCol = document.createElement('div');
+                fieldCol.className = 'col-md-6 mb-3';
+                
+                const fieldCard = document.createElement('div');
+                fieldCard.className = 'card h-100';
+                
+                let fieldContent = '';
+                if (fieldValue.file_value) {
+                    fieldContent = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file fa-2x text-primary me-3"></i>
+                            <div>
+                                <strong>File Uploaded</strong><br>
+                                <small class="text-muted">${fieldValue.file_value.split('/').pop()}</small>
+                            </div>
+                        </div>
+                    `;
+                } else if (fieldValue.value) {
+                    fieldContent = `<p class="mb-0">${fieldValue.value}</p>`;
+                } else {
+                    fieldContent = '<p class="mb-0 text-muted">Not set</p>';
+                }
+                
+                fieldCard.innerHTML = `
+                    <div class="card-body">
+                        <h6 class="card-title">${fieldValue.field_label}</h6>
+                        <p class="card-text">${fieldContent}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-tag me-1"></i>${fieldValue.field_type}
+                            ${fieldValue.field_name !== fieldValue.field_label ? `(${fieldValue.field_name})` : ''}
+                        </small>
+                    </div>
+                `;
+                
+                fieldCol.appendChild(fieldCard);
+                fieldsContainer.appendChild(fieldCol);
+            });
+            
+            fieldValuesDiv.appendChild(fieldsContainer);
+        }
+        
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        console.error('Error loading employee details:', error);
+        showError('Failed to load employee details');
+    }
+}
+
+async function loadAuditTrail() {
+    try {
+        const response = await axios.get(`/api/audit-logs/?employee=${employeeId}&page_size=10`);
+        const auditLogs = response.data.results;
+        
+        const auditTrailDiv = document.getElementById('auditTrail');
+        
+        if (auditLogs.length === 0) {
+            auditTrailDiv.innerHTML = '<div class="alert alert-info">No recent activity found.</div>';
+            return;
+        }
+        
+        const timeline = document.createElement('div');
+        timeline.className = 'timeline';
+        
+        auditLogs.forEach(log => {
+            const timelineItem = document.createElement('div');
+            timelineItem.className = 'timeline-item';
+            
+            const iconClass = getActionIcon(log.action);
+            const actionColor = getActionColor(log.action);
+            
+            timelineItem.innerHTML = `
+                <div class="timeline-marker bg-${actionColor}">
+                    <i class="fas fa-${iconClass}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">${log.action.charAt(0).toUpperCase() + log.action.slice(1)}</h6>
+                                    <p class="mb-1 text-muted">${log.employee_name}</p>
+                                    <small class="text-muted">
+                                        by ${log.performed_by_username}
+                                    </small>
+                                </div>
+                                <small class="text-muted">
+                                    ${new Date(log.timestamp).toLocaleString()}
+                                </small>
+                            </div>
+                            ${log.changes ? `
+                                <div class="mt-2">
+                                    <small class="text-muted">Changes:</small>
+                                    <pre class="small bg-light p-2 rounded mt-1">${JSON.stringify(log.changes, null, 2)}</pre>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            timeline.appendChild(timelineItem);
+        });
+        
+        auditTrailDiv.appendChild(timeline);
+        
+    } catch (error) {
+        console.error('Error loading audit trail:', error);
+        document.getElementById('auditTrail').innerHTML = '<div class="alert alert-warning">Failed to load audit trail.</div>';
+    }
+}
+
+function getActionIcon(action) {
+    const icons = {
+        'create': 'plus',
+        'update': 'edit',
+        'delete': 'trash',
+        'view': 'eye'
+    };
+    return icons[action] || 'circle';
+}
+
+function getActionColor(action) {
+    const colors = {
+        'create': 'success',
+        'update': 'warning',
+        'delete': 'danger',
+        'view': 'info'
+    };
+    return colors[action] || 'secondary';
+}
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    border: 3px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-content {
+    margin-left: 20px;
+}
+
+.bg-success { background-color: #28a745 !important; }
+.bg-warning { background-color: #ffc107 !important; color: #212529 !important; }
+.bg-danger { background-color: #dc3545 !important; }
+.bg-info { background-color: #17a2b8 !important; }
+</style>
+{% endblock %}
+

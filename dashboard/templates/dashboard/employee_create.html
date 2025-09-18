@@ -1,0 +1,148 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Create Employee - Employee Management System{% endblock %}
+{% block page_title %}Create Employee{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Create New Employee</h5>
+                <a href="{% url 'employee_management' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Employees
+                </a>
+            </div>
+            <!-- Error summary (uses existing messages block in base) -->
+            <div class="card-body">
+                <!-- Form Template Selection (List) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <label class="form-label">Select Form Template</label>
+                        <div>
+                            {% for t in form_templates %}
+                            <a href="?form_template={{ t.id }}" class="btn btn-outline-primary me-2 mb-2 {% if selected_form_template == t.id|stringformat:'s' %}active{% endif %}">
+                                {{ t.name }}
+                            </a>
+                            {% empty %}
+                            <span class="text-muted">No form templates available</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Form -->
+                <form id="employeeForm" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" id="formTemplateHidden" name="form_template" value="{{ selected_form_template }}" />
+                    <div id="formFields">
+                        {% if fields %}
+                            {% for field in fields %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ field.field_label }}{% if field.is_required %} <span class="text-danger">*</span>{% endif %}</label>
+                                {% if field.field_type in 'text,email,number' %}
+                                    <input type="{{ field.field_type }}" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'password' %}
+                                    <input type="password" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'date' %}
+                                    <input type="date" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% elif field.field_type == 'textarea' %}
+                                    <textarea class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" rows="3" placeholder="{{ field.placeholder }}" {% if field.is_required %}required{% endif %}>{{ field.value }}</textarea>
+                                {% elif field.field_type == 'select' %}
+                                    <select class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" {% if field.is_required %}required{% endif %}>
+                                        <option value="">Select an option...</option>
+                                        {% for opt in field.options %}
+                                        <option value="{{ opt }}" {% if opt == field.value %}selected{% endif %}>{{ opt }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% elif field.field_type == 'checkbox' %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="field_{{ field.id }}" name="field_{{ field.id }}" {% if field.value in 'true,True,1' %}checked{% endif %}>
+                                        <label class="form-check-label" for="field_{{ field.id }}">{{ field.field_label }}</label>
+                                    </div>
+                                {% elif field.field_type == 'file' %}
+                                    <input type="file" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" accept="*/*">
+                                {% else %}
+                                    <input type="text" class="form-control" id="field_{{ field.id }}" name="field_{{ field.id }}" placeholder="{{ field.placeholder }}" value="{{ field.value }}" {% if field.is_required %}required{% endif %}>
+                                {% endif %}
+                                {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-file-alt fa-3x mb-3"></i>
+                            <p>Please select a form template to start creating an employee</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row mt-4" id="formActions" {% if not fields %}style="display: none;"{% endif %}>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary me-2" onclick="saveEmployee()">
+                                <i class="fas fa-save me-2"></i>Save Employee
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                <i class="fas fa-undo me-2"></i>Reset Form
+                            </button>
+                        </div>
+                    </div>
+                    <input type="hidden" name="field_values_json" id="field_values_json" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedFormTemplate = null;
+let currentFieldId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // If server preselected a template (after validation errors), keep actions visible
+    const preSelected = document.getElementById('formTemplateHidden').value;
+    if (preSelected) {
+            document.getElementById('formActions').style.display = 'block';
+        selectedFormTemplate = preSelected;
+    }
+});
+
+// Form fields are now rendered server-side, no need for dynamic loading
+
+function saveEmployee() {
+    const formTemplateId = document.getElementById('formTemplateHidden').value;
+    if (!formTemplateId) {
+        showError('Please select a form template');
+        return;
+    }
+    const fieldValuesData = {};
+    document.querySelectorAll('[id^="field_"]').forEach(input => {
+        const fieldId = input.id.replace('field_', '');
+        if (input.type === 'checkbox') {
+            fieldValuesData[fieldId] = input.checked;
+        } else if (input.type === 'file') {
+            // For file inputs, we'll let Django handle the file directly
+            // Just include the field name so the server knows it's a file field
+            fieldValuesData[fieldId] = input.files.length > 0 ? 'file_uploaded' : '';
+        } else {
+            fieldValuesData[fieldId] = input.value;
+        }
+    });
+    document.getElementById('field_values_json').value = JSON.stringify(fieldValuesData);
+    document.getElementById('employeeForm').submit();
+}
+
+function resetForm() {
+    if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
+        document.getElementById('employeeForm').reset();
+        // Redirect to clear the form template selection
+        window.location.href = "{% url 'employee_create' %}";
+    }
+}
+</script>
+{% endblock %}
+

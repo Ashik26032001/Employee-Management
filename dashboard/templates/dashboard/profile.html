@@ -1,0 +1,242 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Profile - Employee Management System{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <img id="profilePicture" src="/static/images/default-avatar.png" alt="Profile Picture" 
+                         class="rounded-circle" width="150" height="150" style="object-fit: cover;">
+                </div>
+                <h5 id="userName">{{ user.username }}</h5>
+                <p class="text-muted" id="userEmail">{{ user.email }}</p>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="changeProfilePicture()">
+                    <i class="fas fa-camera me-2"></i>Change Picture
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <form id="profileForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" name="first_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" name="last_name">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phoneNumber" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" id="phoneNumber" name="phone_number">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Member Since</label>
+                            <p class="form-control-plaintext" id="dateJoined">{{ user.date_joined|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Login</label>
+                            <p class="form-control-plaintext" id="lastLogin">
+                                {% if user.last_login %}{{ user.last_login|date:"F d, Y H:i" }}{% else %}Never{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-primary" onclick="saveProfile()">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                        <a href="{% url 'change_password' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-key me-2"></i>Change Password
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Picture Upload Modal -->
+<div class="modal fade" id="profilePictureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="pictureInput" class="form-label">Choose Image</label>
+                    <input type="file" class="form-control" id="pictureInput" accept="image/*">
+                </div>
+                <div id="picturePreview" class="text-center"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="uploadProfilePicture()">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadProfileData();
+});
+
+async function loadProfileData() {
+    try {
+        const response = await axios.get('/api/auth/profile/');
+        const profile = response.data;
+        
+        // Populate form fields
+        document.getElementById('firstName').value = profile.first_name || '';
+        document.getElementById('lastName').value = profile.last_name || '';
+        document.getElementById('email').value = profile.email || '';
+        document.getElementById('username').value = profile.username || '';
+        document.getElementById('phoneNumber').value = profile.phone_number || '';
+        document.getElementById('address').value = profile.address || '';
+        
+        // Update profile picture if available
+        if (profile.profile_picture) {
+            document.getElementById('profilePicture').src = profile.profile_picture;
+        }
+        
+    } catch (error) {
+        console.error('Error loading profile data:', error);
+        showError('Failed to load profile data');
+    }
+}
+
+async function saveProfile() {
+    try {
+        showLoading();
+        
+        const formData = {
+            first_name: document.getElementById('firstName').value,
+            last_name: document.getElementById('lastName').value,
+            phone_number: document.getElementById('phoneNumber').value,
+            address: document.getElementById('address').value
+        };
+        
+        const response = await axios.put('/api/auth/profile/', formData);
+        
+        hideLoading();
+        showSuccess('Profile updated successfully!');
+        
+        // Update displayed name
+        const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+        if (fullName) {
+            document.getElementById('userName').textContent = fullName;
+        }
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error saving profile:', error);
+        if (error.response?.data) {
+            showError('Error: ' + JSON.stringify(error.response.data));
+        } else {
+            showError('Failed to save profile');
+        }
+    }
+}
+
+function changeProfilePicture() {
+    document.getElementById('pictureInput').value = '';
+    document.getElementById('picturePreview').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('profilePictureModal')).show();
+}
+
+document.getElementById('pictureInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('picturePreview').innerHTML = `
+                <img src="${e.target.result}" alt="Preview" class="img-thumbnail" width="200" height="200" style="object-fit: cover;">
+            `;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+async function uploadProfilePicture() {
+    const fileInput = document.getElementById('pictureInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select an image file');
+        return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file');
+        return;
+    }
+    
+    try {
+        showLoading();
+        
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+        
+        const response = await axios.put('/api/auth/profile/', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        
+        hideLoading();
+        showSuccess('Profile picture updated successfully!');
+        
+        // Update profile picture display
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('profilePicture').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        
+        bootstrap.Modal.getInstance(document.getElementById('profilePictureModal')).hide();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error uploading profile picture:', error);
+        showError('Failed to upload profile picture');
+    }
+}
+</script>
+{% endblock %}
+

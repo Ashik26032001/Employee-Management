@@ -1,0 +1,233 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Employee Registration - Employee Management System{% endblock %}
+{% block page_title %}Employee Registration{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4 class="mb-0">Employee Registration</h4>
+                <p class="text-muted mb-0">Create your employee account</p>
+            </div>
+            <div class="card-body">
+                <form id="employeeRegisterForm" method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Authentication Fields -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                        </div>
+                    </div>
+                    
+                    <!-- Form Template Selection -->
+                    <div class="mb-3">
+                        <label for="form_template" class="form-label">Select Form Template <span class="text-danger">*</span></label>
+                        <select class="form-control" id="form_template" name="form_template" required>
+                            <option value="">Choose a form template...</option>
+                            {% for template in form_templates %}
+                            <option value="{{ template.id }}">{{ template.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Dynamic Fields Container -->
+                    <div id="dynamicFields" class="mb-3">
+                        <p class="text-muted">Please select a form template to see the required fields.</p>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus me-2"></i>Register
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p class="mb-0">
+                        Already have an account? 
+                        <a href="{% url 'employee_login' %}" class="text-decoration-none">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedTemplateId = null;
+
+document.getElementById('form_template').addEventListener('change', async function() {
+    const templateId = this.value;
+    if (!templateId) {
+        document.getElementById('dynamicFields').innerHTML = '<p class="text-muted">Please select a form template to see the required fields.</p>';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/form-templates/${templateId}/fields/`);
+        const fields = await response.json();
+        
+        if (fields.length === 0) {
+            document.getElementById('dynamicFields').innerHTML = '<div class="alert alert-warning">This form template has no fields.</div>';
+            return;
+        }
+        
+        let fieldsHtml = '<h6 class="mb-3">Form Fields</h6>';
+        fields.forEach(field => {
+            fieldsHtml += createFieldHtml(field);
+        });
+        
+        document.getElementById('dynamicFields').innerHTML = fieldsHtml;
+        selectedTemplateId = templateId;
+        
+    } catch (error) {
+        console.error('Error loading fields:', error);
+        document.getElementById('dynamicFields').innerHTML = '<div class="alert alert-danger">Failed to load form fields.</div>';
+    }
+});
+
+function createFieldHtml(field) {
+    let html = `<div class="mb-3">`;
+    html += `<label for="field_${field.id}" class="form-label">${field.field_label}`;
+    if (field.is_required) {
+        html += ' <span class="text-danger">*</span>';
+    }
+    html += `</label>`;
+    
+    switch (field.field_type) {
+        case 'text':
+        case 'email':
+        case 'number':
+            html += `<input type="${field.field_type}" class="form-control" id="field_${field.id}" name="field_${field.id}" placeholder="${field.placeholder || ''}" ${field.is_required ? 'required' : ''}>`;
+            break;
+        case 'password':
+            html += `<input type="password" class="form-control" id="field_${field.id}" name="field_${field.id}" placeholder="${field.placeholder || ''}" ${field.is_required ? 'required' : ''}>`;
+            break;
+        case 'date':
+            html += `<input type="date" class="form-control" id="field_${field.id}" name="field_${field.id}" ${field.is_required ? 'required' : ''}>`;
+            break;
+        case 'textarea':
+            html += `<textarea class="form-control" id="field_${field.id}" name="field_${field.id}" rows="3" placeholder="${field.placeholder || ''}" ${field.is_required ? 'required' : ''}></textarea>`;
+            break;
+        case 'select':
+            html += `<select class="form-control" id="field_${field.id}" name="field_${field.id}" ${field.is_required ? 'required' : ''}>`;
+            html += '<option value="">Select an option...</option>';
+            if (field.options && field.options.length > 0) {
+                field.options.forEach(option => {
+                    html += `<option value="${option}">${option}</option>`;
+                });
+            }
+            html += '</select>';
+            break;
+        case 'checkbox':
+            html += `<div class="form-check">`;
+            html += `<input class="form-check-input" type="checkbox" id="field_${field.id}" name="field_${field.id}">`;
+            html += `<label class="form-check-label" for="field_${field.id}">${field.field_label}</label>`;
+            html += `</div>`;
+            break;
+        case 'file':
+            html += `<input type="file" class="form-control" id="field_${field.id}" name="field_${field.id}" ${field.is_required ? 'required' : ''}>`;
+            break;
+        default:
+            html += `<input type="text" class="form-control" id="field_${field.id}" name="field_${field.id}" placeholder="${field.placeholder || ''}" ${field.is_required ? 'required' : ''}>`;
+    }
+    
+    if (field.help_text) {
+        html += `<div class="form-text">${field.help_text}</div>`;
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
+document.getElementById('employeeRegisterForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!selectedTemplateId) {
+        showError('Please select a form template');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const fieldValues = {};
+    
+    // Collect dynamic field values
+    document.querySelectorAll('[id^="field_"]').forEach(input => {
+        const fieldId = input.id.replace('field_', '');
+        if (input.type === 'checkbox') {
+            fieldValues[fieldId] = input.checked;
+        } else if (input.type === 'file') {
+            // For file inputs, we'll handle them separately if needed
+            fieldValues[fieldId] = input.files.length > 0 ? 'file_uploaded' : '';
+        } else {
+            fieldValues[fieldId] = input.value;
+        }
+    });
+    
+    const data = {
+        username: formData.get('username'),
+        password: formData.get('password'),
+        form_template_id: selectedTemplateId,
+        field_values: fieldValues
+    };
+    
+    try {
+        const response = await fetch('/api/employee/auth/register/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showSuccess(result.message);
+            setTimeout(() => {
+                window.location.href = '/employee/login/';
+            }, 2000);
+        } else {
+            if (result.details && Array.isArray(result.details)) {
+                showError(result.details.join(', '));
+            } else {
+                showError(result.error || 'Registration failed');
+            }
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        showError('Network error. Please try again.');
+    }
+});
+
+function showSuccess(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('form'));
+}
+
+function showError(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        <i class="fas fa-exclamation-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.card-body').insertBefore(alertDiv, document.querySelector('form'));
+}
+</script>
+{% endblock %}

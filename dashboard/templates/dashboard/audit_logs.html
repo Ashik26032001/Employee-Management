@@ -1,0 +1,352 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Audit Logs - Employee Management System{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="actionFilter" class="form-label">Action</label>
+                        <select class="form-control" id="actionFilter">
+                            <option value="">All Actions</option>
+                            <option value="create">Create</option>
+                            <option value="update">Update</option>
+                            <option value="delete">Delete</option>
+                            <option value="view">View</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="employeeFilter" class="form-label">Employee</label>
+                        <select class="form-control" id="employeeFilter">
+                            <option value="">All Employees</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="dateFrom" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="dateFrom">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="dateTo" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="dateTo">
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-primary" onclick="searchAuditLogs()">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">
+                            <i class="fas fa-undo me-2"></i>Reset
+                        </button>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-primary" onclick="exportAuditLogs()">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Audit Trail</h5>
+                <span class="badge bg-primary" id="auditCount">Loading...</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Employee</th>
+                                <th>Performed By</th>
+                                <th>Timestamp</th>
+                                <th>IP Address</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsTable">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <nav aria-label="Audit logs pagination">
+                    <ul class="pagination justify-content-center" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Audit Detail Modal -->
+<div class="modal fade" id="auditDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Audit Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="auditDetailContent">
+                <!-- Audit details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAuditLogs();
+    loadEmployees();
+});
+
+async function loadAuditLogs(page = 1) {
+    try {
+        showLoading();
+        currentPage = page;
+        
+        const params = new URLSearchParams({
+            page: page,
+            ordering: '-timestamp'
+        });
+        
+        const actionFilter = document.getElementById('actionFilter').value;
+        if (actionFilter) {
+            params.append('action', actionFilter);
+        }
+        
+        const employeeFilter = document.getElementById('employeeFilter').value;
+        if (employeeFilter) {
+            params.append('employee', employeeFilter);
+        }
+        
+        const dateFrom = document.getElementById('dateFrom').value;
+        if (dateFrom) {
+            params.append('timestamp__gte', dateFrom);
+        }
+        
+        const dateTo = document.getElementById('dateTo').value;
+        if (dateTo) {
+            params.append('timestamp__lte', dateTo);
+        }
+        
+        const response = await axios.get(`/api/audit-logs/?${params}`);
+        const data = response.data;
+        
+        displayAuditLogs(data.results);
+        displayPagination(data);
+        document.getElementById('auditCount').textContent = `Total: ${data.count}`;
+        
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        console.error('Error loading audit logs:', error);
+        showError('Failed to load audit logs');
+    }
+}
+
+function displayAuditLogs(auditLogs) {
+    const tbody = document.getElementById('auditLogsTable');
+    tbody.innerHTML = '';
+    
+    if (auditLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No audit logs found</td></tr>';
+        return;
+    }
+    
+    auditLogs.forEach(log => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <span class="badge bg-${getActionColor(log.action)}">
+                    <i class="fas fa-${getActionIcon(log.action)} me-1"></i>
+                    ${log.action.charAt(0).toUpperCase() + log.action.slice(1)}
+                </span>
+            </td>
+            <td>${log.employee_name}</td>
+            <td>${log.performed_by_username}</td>
+            <td>${new Date(log.timestamp).toLocaleString()}</td>
+            <td>${log.ip_address || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewAuditDetails(${log.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function displayPagination(data) {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (!data.previous && !data.next) return;
+    
+    // Previous button
+    if (data.previous) {
+        const prevLi = document.createElement('li');
+        prevLi.className = 'page-item';
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadAuditLogs(${currentPage - 1})">Previous</a>`;
+        pagination.appendChild(prevLi);
+    }
+    
+    // Page numbers
+    const totalPages = Math.ceil(data.count / 20);
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageLi = document.createElement('li');
+        pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
+        pageLi.innerHTML = `<a class="page-link" href="#" onclick="loadAuditLogs(${i})">${i}</a>`;
+        pagination.appendChild(pageLi);
+    }
+    
+    // Next button
+    if (data.next) {
+        const nextLi = document.createElement('li');
+        nextLi.className = 'page-item';
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadAuditLogs(${currentPage + 1})">Next</a>`;
+        pagination.appendChild(nextLi);
+    }
+}
+
+async function loadEmployees() {
+    try {
+        const response = await axios.get('/api/employees/');
+        const employees = response.data.results;
+        
+        const select = document.getElementById('employeeFilter');
+        select.innerHTML = '<option value="">All Employees</option>';
+        
+        employees.forEach(employee => {
+            const option = document.createElement('option');
+            option.value = employee.id;
+            option.textContent = employee.employee_name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading employees:', error);
+    }
+}
+
+function searchAuditLogs() {
+    loadAuditLogs(1);
+}
+
+function resetFilters() {
+    document.getElementById('actionFilter').value = '';
+    document.getElementById('employeeFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    loadAuditLogs(1);
+}
+
+async function viewAuditDetails(auditLogId) {
+    try {
+        showLoading();
+        const response = await axios.get(`/api/audit-logs/${auditLogId}/`);
+        const log = response.data;
+        
+        let content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Action</h6>
+                    <p><span class="badge bg-${getActionColor(log.action)}">${log.action.charAt(0).toUpperCase() + log.action.slice(1)}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Employee</h6>
+                    <p>${log.employee_name}</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Performed By</h6>
+                    <p>${log.performed_by_username}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Timestamp</h6>
+                    <p>${new Date(log.timestamp).toLocaleString()}</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>IP Address</h6>
+                    <p>${log.ip_address || 'Not available'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>User Agent</h6>
+                    <p class="small">${log.user_agent || 'Not available'}</p>
+                </div>
+            </div>
+        `;
+        
+        if (log.changes) {
+            content += `
+                <hr>
+                <h6>Changes Made</h6>
+                <div class="bg-light p-3 rounded">
+                    <pre class="mb-0 small">${JSON.stringify(log.changes, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        document.getElementById('auditDetailContent').innerHTML = content;
+        new bootstrap.Modal(document.getElementById('auditDetailModal')).show();
+        hideLoading();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Error loading audit details:', error);
+        showError('Failed to load audit details');
+    }
+}
+
+function getActionIcon(action) {
+    const icons = {
+        'create': 'plus',
+        'update': 'edit',
+        'delete': 'trash',
+        'view': 'eye'
+    };
+    return icons[action] || 'circle';
+}
+
+function getActionColor(action) {
+    const colors = {
+        'create': 'success',
+        'update': 'warning',
+        'delete': 'danger',
+        'view': 'info'
+    };
+    return colors[action] || 'secondary';
+}
+
+function exportAuditLogs() {
+    // Implementation for exporting audit logs
+    alert('Export functionality will be implemented');
+}
+</script>
+{% endblock %}
+
