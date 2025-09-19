@@ -42,3 +42,4 @@ def employee_list_view(request):
     return render(request, 'dashboard/employee_list.html', {
         'employees': employees
     })
+

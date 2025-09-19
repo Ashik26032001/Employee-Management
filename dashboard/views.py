@@ -217,6 +217,159 @@ def change_password(request):
     return render(request, 'dashboard/change_password.html')
 
 
+# @login_required
+# def employee_create(request):
+#     """Employee creation page"""
+#     if request.method == 'POST':
+#         form_template_id = request.POST.get('form_template')
+#         field_values_json = request.POST.get('field_values_json')
+
+#         if not form_template_id:
+#             messages.error(request, 'Please select a form template')
+#             form_templates = FormTemplate.objects.order_by('name')
+#             return render(request, 'dashboard/employee_create.html', {
+#                 'form_templates': form_templates,
+#                 'selected_form_template': '',
+#             })
+
+#         try:
+#             field_values_data = json.loads(field_values_json or '{}')
+#         except json.JSONDecodeError:
+#             messages.error(request, 'Invalid field values. Please try again.')
+#             form_templates = FormTemplate.objects.order_by('name')
+#             return render(request, 'dashboard/employee_create.html', {
+#                 'form_templates': form_templates,
+#                 'selected_form_template': form_template_id,
+#             })
+
+#         # Validate required fields
+#         validation_errors = []
+#         fields = FormField.objects.filter(form_template_id=form_template_id)
+#         for field in fields:
+#             if field.is_required:
+#                 if field.field_type == 'file':
+#                     # Check if file was uploaded
+#                     uploaded_file = request.FILES.get(f'field_{field.id}')
+#                     if not uploaded_file:
+#                         validation_errors.append(f"{field.field_label} is required")
+#                 else:
+#                     # Check regular form fields
+#                     raw_value = field_values_data.get(str(field.id))
+#                     if raw_value in [None, '', False]:
+#                         validation_errors.append(f"{field.field_label} is required")
+
+#         if not field_values_data:
+#             validation_errors.append('No field data was submitted. Please fill the form fields and try again.')
+
+#         if validation_errors:
+#             for err in validation_errors:
+#                 messages.error(request, err)
+#             # Build server-rendered fields with submitted values and error hints
+#             form_templates = FormTemplate.objects.order_by('name')
+#             field_defs = []
+#             for f in fields.order_by('order', 'id'):
+#                 submitted = field_values_data.get(str(f.id), '')
+#                 field_defs.append({
+#                     'id': f.id,
+#                     'field_label': f.field_label,
+#                     'field_name': f.field_name,
+#                     'field_type': f.field_type,
+#                     'is_required': f.is_required,
+#                     'placeholder': f.placeholder or '',
+#                     'help_text': f.help_text or '',
+#                     'options': f.options or [],
+#                     'value': str(submitted),
+#                 })
+#             return render(request, 'dashboard/employee_create.html', {
+#                 'form_templates': form_templates,
+#                 'selected_form_template': form_template_id,
+#                 'fields': field_defs,
+#             })
+
+#         try:
+#             # Create employee
+#             employee = Employee.objects.create(
+#                 form_template_id=form_template_id,
+#                 created_by=request.user,
+#                 is_active=True
+#             )
+
+#             # Create field values
+#             saved_fields_count = 0
+#             for field in fields:
+#                 if field.field_type == 'file':
+#                     # Handle file uploads directly from request.FILES
+#                     uploaded_file = request.FILES.get(f'field_{field.id}')
+#                     if uploaded_file:
+#                         # Save the file and store the path
+#                         from django.core.files.storage import default_storage
+#                         import uuid
+#                         file_name = f"{uuid.uuid4()}_{uploaded_file.name}"
+#                         file_path = default_storage.save(f"employee_files/{file_name}", uploaded_file)
+#                         EmployeeFieldValue.objects.create(employee=employee, field=field, value=file_path)
+#                         saved_fields_count += 1
+#                 else:
+#                     # Handle regular form fields
+#                     raw_value = field_values_data.get(str(field.id))
+#                     if raw_value is not None:
+#                         EmployeeFieldValue.objects.create(employee=employee, field=field, value=str(raw_value))
+#                         saved_fields_count += 1
+
+#             AuditLog.objects.create(
+#                 employee=employee,
+#                 action='create',
+#                 performed_by=request.user,
+#                 changes={'created': True},
+#                 ip_address=request.META.get('REMOTE_ADDR'),
+#                 user_agent=request.META.get('HTTP_USER_AGENT')
+#             )
+
+#             messages.success(request, 'Employee created successfully')
+#             return redirect('employee_management')
+#         except Exception as e:
+#             messages.error(request, f"Could not create employee: {e}")
+#             form_templates = FormTemplate.objects.order_by('name')
+#             field_defs = []
+#             for f in fields.order_by('order', 'id'):
+#                 submitted = field_values_data.get(str(f.id), '')
+#                 field_defs.append({
+#                     'id': f.id,
+#                     'field_label': f.field_label,
+#                     'field_name': f.field_name,
+#                     'field_type': f.field_type,
+#                     'is_required': f.is_required,
+#                     'placeholder': f.placeholder or '',
+#                     'help_text': f.help_text or '',
+#                     'options': f.options or [],
+#                     'value': str(submitted),
+#                 })
+#             return render(request, 'dashboard/employee_create.html', {
+#                 'form_templates': form_templates,
+#                 'selected_form_template': form_template_id,
+#                 'fields': field_defs,
+#             })
+
+#     # GET: optionally render fields for selected template (no JS needed)
+#     form_templates = FormTemplate.objects.order_by('name')
+#     selected = request.GET.get('form_template')
+#     ctx = { 'form_templates': form_templates, 'selected_form_template': selected or '' }
+#     if selected:
+#         fields = FormField.objects.filter(form_template_id=selected).order_by('order', 'id')
+#         field_defs = []
+#         for f in fields:
+#             field_defs.append({
+#                 'id': f.id,
+#                 'field_label': f.field_label,
+#                 'field_name': f.field_name,
+#                 'field_type': f.field_type,
+#                 'is_required': f.is_required,
+#                 'placeholder': f.placeholder or '',
+#                 'help_text': f.help_text or '',
+#                 'options': f.options or [],
+#                 'value': '',
+#             })
+#         ctx['fields'] = field_defs
+#     return render(request, 'dashboard/employee_create.html', ctx)
 @login_required
 def employee_create(request):
     """Employee creation page"""
@@ -248,12 +401,10 @@ def employee_create(request):
         for field in fields:
             if field.is_required:
                 if field.field_type == 'file':
-                    # Check if file was uploaded
                     uploaded_file = request.FILES.get(f'field_{field.id}')
                     if not uploaded_file:
                         validation_errors.append(f"{field.field_label} is required")
                 else:
-                    # Check regular form fields
                     raw_value = field_values_data.get(str(field.id))
                     if raw_value in [None, '', False]:
                         validation_errors.append(f"{field.field_label} is required")
@@ -264,7 +415,6 @@ def employee_create(request):
         if validation_errors:
             for err in validation_errors:
                 messages.error(request, err)
-            # Build server-rendered fields with submitted values and error hints
             form_templates = FormTemplate.objects.order_by('name')
             field_defs = []
             for f in fields.order_by('order', 'id'):
@@ -287,21 +437,34 @@ def employee_create(request):
             })
 
         try:
-            # Create employee
+            # Extract name and password from dynamic fields
+            username_value = None
+            password_value = None
+            for field in fields:
+                value = field_values_data.get(str(field.id))
+                if field.field_name.lower() in ["name", "employee_name"]:
+                    username_value = str(value)
+                if field.field_name.lower() in ["password", "employee_password"]:
+                    password_value = str(value)
+
+            # Create employee with username and password
             employee = Employee.objects.create(
                 form_template_id=form_template_id,
                 created_by=request.user,
-                is_active=True
+                is_active=True,
+                username=username_value
             )
 
-            # Create field values
+            if password_value:
+                employee.set_password(password_value)
+                employee.save()
+
+            # Save dynamic fields
             saved_fields_count = 0
             for field in fields:
                 if field.field_type == 'file':
-                    # Handle file uploads directly from request.FILES
                     uploaded_file = request.FILES.get(f'field_{field.id}')
                     if uploaded_file:
-                        # Save the file and store the path
                         from django.core.files.storage import default_storage
                         import uuid
                         file_name = f"{uuid.uuid4()}_{uploaded_file.name}"
@@ -309,7 +472,6 @@ def employee_create(request):
                         EmployeeFieldValue.objects.create(employee=employee, field=field, value=file_path)
                         saved_fields_count += 1
                 else:
-                    # Handle regular form fields
                     raw_value = field_values_data.get(str(field.id))
                     if raw_value is not None:
                         EmployeeFieldValue.objects.create(employee=employee, field=field, value=str(raw_value))
@@ -349,7 +511,6 @@ def employee_create(request):
                 'fields': field_defs,
             })
 
-    # GET: optionally render fields for selected template (no JS needed)
     form_templates = FormTemplate.objects.order_by('name')
     selected = request.GET.get('form_template')
     ctx = { 'form_templates': form_templates, 'selected_form_template': selected or '' }
@@ -370,6 +531,7 @@ def employee_create(request):
             })
         ctx['fields'] = field_defs
     return render(request, 'dashboard/employee_create.html', ctx)
+
 
 
 @login_required
