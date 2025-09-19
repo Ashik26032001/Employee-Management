@@ -11,7 +11,7 @@ from .models import Employee, AuditLog
 from .serializers import (
     DashboardSettingsSerializer, SavedSearchSerializer, NotificationSerializer
 )
-from dashboard.models import DashboardSettings, SavedSearch, Notification
+from dashboard.models import DashboardSettings, SavedSearch, Notification,FormTemplate
 
 
 class DashboardSettingsView(APIView):
