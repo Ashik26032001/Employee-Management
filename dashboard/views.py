@@ -31,18 +31,19 @@ def login_view(request):
     """Login view"""
     if request.user.is_authenticated:
         return redirect('dashboard')
-    
+
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-        
+
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
+            messages.success(request, f"Welcome {user.username}!")
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password')
-    
+
     return render(request, 'dashboard/login.html')
 
 
